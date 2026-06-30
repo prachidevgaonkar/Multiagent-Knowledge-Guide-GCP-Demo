@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Multi-Agent Knowledge Guide — Interactive Demo</title>
+<style>
+  /* ── Tokens ──────────────────────────────────────────────── */
+  :root {
+    --ink:       #0d1117;
+    --ink-soft:  #3d4451;
+    --ink-faint: #8b929e;
+    --surface:   #ffffff;
+    --panel:     #f4f6f9;
+    --border:    #d0d7de;
+
+    --doc:    #2563eb;   /* blue  — Doc agent   */
+    --issue:  #d97706;   /* amber — Issue agent  */
+    --code:   #059669;   /* green — Code agent   */
+    --orch:   #7c3aed;   /* violet— Orchestrator */
+    --chat:   #0891b2;   /* cyan  — Chat / user  */
+
+    --doc-bg:   #eff6ff;
+    --issue-bg: #fffbeb;
+    --code-bg:  #ecfdf5;
+    --orch-bg:  #f5f3ff;
+
+    --radius: 10px;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--ink);
+    color: var(--surface);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Hero ────────────────────────────────────────────────── */
+  .hero {
+    padding: 72px 24px 56px;
+    text-align: center;
+    background: linear-gradient(160deg, #0d1117 0%, #1a1f2e 60%, #0d1117 100%);
+    border-bottom: 1px solid #21262d;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124,58,237,.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--orch);
+    background: rgba(124,58,237,.12);
+    border: 1px solid rgba(124,58,237,.3);
+    border-radius: 20px;
+    padding: 4px 14px;
+    margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-size: clamp(28px, 5vw, 52px);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1.1;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #fff 30%, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero p {
+    max-width: 560px;
+    margin: 0 auto 36px;
+    color: #8b929e;
+    font-size: 16px;
+    line-height: 1.7;
+  }
+  .agent-pills {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 40px;
+  }
+  .pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid;
+  }
+  .pill-orch  { color: #a78bfa; border-color: rgba(124,58,237,.4); background: rgba(124,58,237,.1); }
+  .pill-doc   { color: #60a5fa; border-color: rgba(37,99,235,.4);  background: rgba(37,99,235,.1); }
+  .pill-issue { color: #fbbf24; border-color: rgba(217,119,6,.4);  background: rgba(217,119,6,.1); }
+  .pill-code  { color: #34d399; border-color: rgba(5,150,105,.4);  background: rgba(5,150,105,.1); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+  /* ── Layout ──────────────────────────────────────────────── */
+  .main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+    display: grid;
+    gap: 40px;
+  }
+
+  /* ── Section headers ─────────────────────────────────────── */
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #e6edf3;
+    margin-bottom: 8px;
+  }
+  .section-desc {
+    color: #8b929e;
+    font-size: 14px;
+    max-width: 620px;
+  }
+
+  /* ── Architecture Diagram ────────────────────────────────── */
+  .arch-card {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 16px;
+    padding: 32px;
+  }
+  .arch-layers {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .arch-layer {
+    border-radius: 10px;
+    padding: 16px 20px;
+    border: 1px solid;
+    position: relative;
+  }
+  .layer-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    opacity: .7;
+  }
+  .layer-title { font-size: 14px; font-weight: 600; }
+  .layer-desc  { font-size: 12px; opacity: .65; margin-top: 2px; }
+
+  .layer-chat  { border-color: rgba(8,145,178,.35); background: rgba(8,145,178,.07); color: #67e8f9; }
+  .layer-mid   { border-color: rgba(100,116,139,.35); background: rgba(100,116,139,.07); color: #94a3b8; }
+  .layer-orch  { border-color: rgba(124,58,237,.35); background: rgba(124,58,237,.07); }
+  .layer-data  { border-color: rgba(30,41,59,.8); background: rgba(15,23,42,.5); }
+
+  .orch-inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .sub-agent {
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid;
+  }
+  .sa-doc   { border-color: rgba(37,99,235,.4);  background: rgba(37,99,235,.1);  color: #60a5fa; }
+  .sa-issue { border-color: rgba(217,119,6,.4);  background: rgba(217,119,6,.1);  color: #fbbf24; }
+  .sa-code  { border-color: rgba(5,150,105,.4);  background: rgba(5,150,105,.1);  color: #34d399; }
+  .sa-icon  { font-size: 18px; display: block; margin-bottom: 4px; }
+
+  .data-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .data-store {
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-align: center;
+    border: 1px solid #30363d;
+    background: #0d1117;
+    color: #8b929e;
+  }
+  .connector {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 20px;
+    color: #30363d;
+    height: 24px;
+  }
+
+  /* ── Demo Chat ───────────────────────────────────────────── */
+  .demo-card {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .demo-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #21262d;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #0d1117;
+  }
+  .demo-header-left { display: flex; align-items: center; gap: 10px; }
+  .demo-header-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--orch), #2563eb);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .demo-header h3 { font-size: 14px; font-weight: 600; color: #e6edf3; }
+  .demo-header p  { font-size: 12px; color: #8b929e; }
+  .status-dot-live {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: #34d399; font-weight: 600;
+  }
+  .status-dot-live::before {
+    content: '';
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #34d399;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .3; }
+  }
+
+  /* Scenario tabs */
+  .scenario-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #21262d;
+    overflow-x: auto;
+    scrollbar-width: none;
+    background: #0d1117;
+  }
+  .scenario-tabs::-webkit-scrollbar { display: none; }
+  .tab-btn {
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    background: none;
+    color: #8b929e;
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+  }
+  .tab-btn:hover { color: #e6edf3; }
+  .tab-btn.active { color: #e6edf3; border-bottom-color: var(--orch); }
+
+  /* Chat area */
+  .chat-area {
+    padding: 24px;
+    min-height: 380px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Messages */
+  .msg { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
+  .msg-meta {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .05em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .msg-bubble {
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    max-width: 80%;
+    width: fit-content;
+  }
+
+  .msg.user .msg-meta { color: var(--chat); }
+  .msg.user .msg-bubble {
+    background: rgba(8,145,178,.1);
+    border: 1px solid rgba(8,145,178,.25);
+    color: #e2f7fb;
+    margin-left: auto;
+    text-align: right;
+  }
+  .msg.user { align-items: flex-end; }
+
+  .msg.orchestrator .msg-meta { color: #a78bfa; }
+  .msg.orchestrator .msg-bubble {
+    background: rgba(124,58,237,.08);
+    border: 1px solid rgba(124,58,237,.2);
+    color: #ede9fe;
+  }
+
+  .msg.doc .msg-meta { color: #60a5fa; }
+  .msg.doc .msg-bubble {
+    background: rgba(37,99,235,.08);
+    border: 1px solid rgba(37,99,235,.2);
+    color: #dbeafe;
+  }
+
+  .msg.issue .msg-meta { color: #fbbf24; }
+  .msg.issue .msg-bubble {
+    background: rgba(217,119,6,.08);
+    border: 1px solid rgba(217,119,6,.2);
+    color: #fef3c7;
+  }
+
+  .msg.code .msg-meta { color: #34d399; }
+  .msg.code .msg-bubble {
+    background: rgba(5,150,105,.08);
+    border: 1px solid rgba(5,150,105,.2);
+    color: #d1fae5;
+  }
+
+  .msg.system .msg-meta { color: #8b929e; }
+  .msg.system .msg-bubble {
+    background: rgba(48,54,61,.4);
+    border: 1px solid #30363d;
+    color: #8b929e;
+    font-size: 12px;
+    font-style: italic;
+  }
+
+  .agent-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: 4px;
+  }
+  .tag-orch  { background: rgba(124,58,237,.2); color: #a78bfa; }
+  .tag-doc   { background: rgba(37,99,235,.2);  color: #60a5fa; }
+  .tag-issue { background: rgba(217,119,6,.2);  color: #fbbf24; }
+  .tag-code  { background: rgba(5,150,105,.2);  color: #34d399; }
+
+  code.inline {
+    background: rgba(110,118,129,.15);
+    border: 1px solid rgba(110,118,129,.25);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: .85em;
+    color: #e6edf3;
+  }
+
+  /* Routing trace */
+  .routing-trace {
+    margin: 8px 0;
+    padding: 10px 14px;
+    background: rgba(0,0,0,.3);
+    border-radius: 8px;
+    border-left: 3px solid var(--orch);
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: #8b929e;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .route-arrow { color: #30363d; }
+  .route-node {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .sql-block {
+    margin: 8px 0;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: #79c0ff;
+    overflow-x: auto;
+  }
+  .sql-keyword { color: #ff7b72; }
+  .sql-string  { color: #a5d6ff; }
+  .sql-num     { color: #fbbf24; }
+
+  /* Play button */
+  .play-bar {
+    padding: 16px 24px;
+    border-top: 1px solid #21262d;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    background: #0d1117;
+  }
+  .play-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    background: var(--orch);
+    color: white;
+  }
+  .play-btn:hover { background: #6d28d9; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(124,58,237,.4); }
+  .play-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  .play-hint { font-size: 12px; color: #8b929e; }
+
+  /* ── Lessons Grid ────────────────────────────────────────── */
+  .lessons-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .lesson-card {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .lesson-card:hover { border-color: #388bfd; }
+  .lesson-icon { font-size: 22px; margin-bottom: 10px; }
+  .lesson-title { font-size: 14px; font-weight: 700; color: #e6edf3; margin-bottom: 6px; }
+  .lesson-body  { font-size: 13px; color: #8b929e; line-height: 1.6; }
+  .lesson-tag {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(110,118,129,.12);
+    color: #8b929e;
+  }
+
+  /* ── Issues tracker ──────────────────────────────────────── */
+  .issues-list { display: flex; flex-direction: column; gap: 12px; }
+  .issue-card {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 10px;
+    padding: 18px 20px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 16px;
+    align-items: start;
+  }
+  .issue-num {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: #8b929e;
+    padding-top: 2px;
+  }
+  .issue-title { font-size: 14px; font-weight: 600; color: #e6edf3; margin-bottom: 6px; }
+  .issue-desc  { font-size: 13px; color: #8b929e; }
+  .issue-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 12px;
+    white-space: nowrap;
+  }
+  .badge-active { background: rgba(245,158,11,.15); color: #fbbf24; border: 1px solid rgba(245,158,11,.3); }
+  .badge-known  { background: rgba(110,118,129,.12); color: #8b929e; border: 1px solid #30363d; }
+
+  /* ── Roadmap ─────────────────────────────────────────────── */
+  .roadmap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+  .roadmap-card {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .roadmap-icon { font-size: 24px; margin-bottom: 10px; }
+  .roadmap-title { font-size: 14px; font-weight: 700; color: #e6edf3; margin-bottom: 8px; }
+  .roadmap-desc  { font-size: 13px; color: #8b929e; line-height: 1.55; }
+
+  /* ── Footer ──────────────────────────────────────────────── */
+  footer {
+    text-align: center;
+    padding: 32px 24px;
+    border-top: 1px solid #21262d;
+    color: #8b929e;
+    font-size: 13px;
+  }
+  footer a { color: #58a6ff; text-decoration: none; }
+
+  /* ── Responsive ──────────────────────────────────────────── */
+  @media (max-width: 600px) {
+    .orch-inner, .data-grid { grid-template-columns: 1fr; }
+    .issue-card { grid-template-columns: 1fr; }
+    .issue-badge { justify-self: start; }
+    .msg-bubble { max-width: 95%; }
+  }
+
+  /* ── Animations ──────────────────────────────────────────── */
+  .fade-in { animation: fadeIn .4s ease forwards; }
+  .slide-in { animation: slideIn .35s ease forwards; }
+  @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .thinking {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 14px;
+    background: rgba(124,58,237,.07);
+    border: 1px solid rgba(124,58,237,.15);
+    border-radius: 10px;
+    width: fit-content;
+    color: #8b929e;
+    font-size: 13px;
+  }
+  .thinking span { width: 6px; height: 6px; border-radius: 50%; background: #a78bfa; animation: bounce 1.2s infinite; }
+  .thinking span:nth-child(2) { animation-delay: .2s; }
+  .thinking span:nth-child(3) { animation-delay: .4s; }
+  @keyframes bounce { 0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)} }
+
+  /* ── Response Tables ─────────────────────────────────────── */
+  .resp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin: 10px 0 4px;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .resp-table th {
+    background: rgba(0,0,0,.35);
+    color: #c9d1d9;
+    font-weight: 700;
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .resp-table td {
+    padding: 7px 12px;
+    border-top: 1px solid rgba(255,255,255,.06);
+    color: #e6edf3;
+    vertical-align: top;
+    line-height: 1.45;
+  }
+  .resp-table tr:hover td { background: rgba(255,255,255,.03); }
+  .badge-new    { display:inline-block; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:700; background:rgba(5,150,105,.2); color:#34d399; border:1px solid rgba(5,150,105,.3); }
+  .badge-feat   { display:inline-block; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:700; background:rgba(37,99,235,.2); color:#60a5fa; border:1px solid rgba(37,99,235,.3); }
+  .badge-open   { display:inline-block; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:700; background:rgba(217,119,6,.2); color:#fbbf24; border:1px solid rgba(217,119,6,.3); }
+  .badge-p0     { display:inline-block; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:700; background:rgba(239,68,68,.2); color:#f87171; border:1px solid rgba(239,68,68,.3); }
+  .badge-p1     { display:inline-block; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:700; background:rgba(245,158,11,.2); color:#fbbf24; border:1px solid rgba(245,158,11,.3); }
+
+  /* Functional spec boxes */
+  .spec-section {
+    margin: 10px 0;
+    background: rgba(0,0,0,.25);
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .spec-header {
+    padding: 7px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    background: rgba(0,0,0,.3);
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .spec-body {
+    padding: 10px 12px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #c9d1d9;
+  }
+  .spec-body li { margin-left: 14px; margin-bottom: 3px; }
+
+  /* Code snapshot block */
+  .code-snap {
+    margin: 10px 0;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .code-snap-header {
+    padding: 7px 14px;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: #8b929e;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .code-snap-header .file-name { color: #58a6ff; font-weight: 600; }
+  .code-snap pre {
+    padding: 14px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: #e6edf3;
+    overflow-x: auto;
+    line-height: 1.6;
+  }
+  .kw  { color: #ff7b72; }
+  .fn  { color: #d2a8ff; }
+  .str { color: #a5d6ff; }
+  .cm  { color: #8b949e; font-style: italic; }
+  .num { color: #fbbf24; }
+
+  /* Journey path */
+  .journey-step {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+  .journey-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    flex-shrink: 0;
+  }
+  .journey-circle {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .journey-line {
+    width: 2px;
+    flex: 1;
+    min-height: 20px;
+    background: rgba(255,255,255,.1);
+    margin-top: 4px;
+  }
+  .journey-content {
+    padding-bottom: 14px;
+    flex: 1;
+  }
+  .journey-title { font-size: 13px; font-weight: 700; color: #e6edf3; margin-bottom: 4px; }
+  .journey-desc  { font-size: 12px; color: #8b929e; line-height: 1.55; }
+  .repo-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 600;
+    border: 1px solid #30363d; background: #161b22; color: #8b929e;
+    margin: 3px 3px 0 0;
+  }
+  .tech-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 600;
+    margin: 3px 3px 0 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── HERO ──────────────────────────────────────────────────── -->
+<header class="hero">
+  <div class="hero-badge">Vertex AI · Multi-Agent POC</div>
+  <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:18px;">
+    <span style="display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#34d399; background:rgba(5,150,105,.12); border:1px solid rgba(5,150,105,.3); border-radius:20px; padding:5px 14px;">
+      <span style="width:6px; height:6px; border-radius:50%; background:#34d399; animation:pulse 2s infinite;"></span>
+      Interactive Demo
+    </span>
+    <span style="font-size:11px; color:#8b929e;">companion to the white paper</span>
+  </div>
+  <h1>Multi-Agent Knowledge Guide</h1>
+  <p>Ask questions in plain English. Get answers drawn from documents, issue tracker data, and source code — all at once, all through one interface.</p>
+  <p style="margin-top:-20px; margin-bottom:36px;">
+    <a href="https://prachidevgaonkar.github.io/Multiagent-Knowledge-Guide-GCP/" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:#a78bfa; text-decoration:none; border-bottom:1px solid rgba(167,139,250,.35); padding-bottom:2px;">
+      📄 Read the full white paper →
+    </a>
+  </p>
+  <div class="agent-pills">
+    <div class="pill pill-orch"><span class="dot"></span>Orchestrator</div>
+    <div class="pill pill-doc"><span class="dot"></span>Doc Agent</div>
+    <div class="pill pill-issue"><span class="dot"></span>Issue Agent</div>
+    <div class="pill pill-code"><span class="dot"></span>Code Agent</div>
+  </div>
+</header>
+
+<!-- ── MAIN ───────────────────────────────────────────────────── -->
+<main class="main">
+
+  <!-- ARCHITECTURE -->
+  <section>
+    <p class="section-label">System Design</p>
+    <h2 class="section-title">How the agents are arranged</h2>
+    <p class="section-desc">Four layers from chat interface to data stores, with an Orchestrator routing every query to the right specialist.</p>
+    <br/>
+    <div class="arch-card">
+      <div class="arch-layers">
+        <!-- Layer 1 -->
+        <div class="arch-layer layer-chat">
+          <div class="layer-label">Layer 1 · Presentation</div>
+          <div class="layer-title">🗨 Google Chat</div>
+          <div class="layer-desc">Natural-language queries from engineers, PMs, leaders, and new joiners</div>
+        </div>
+        <div class="connector">↓ HTTP POST webhook</div>
+
+        <!-- Layer 2 -->
+        <div class="arch-layer layer-mid">
+          <div class="layer-label">Layer 2 · Cloud Function</div>
+          <div class="layer-title">⚡ Cloud Function + Cloud Tasks</div>
+          <div class="layer-desc">Validates request, acknowledges immediately, dispatches durable work item via Cloud Tasks queue</div>
+        </div>
+        <div class="connector">↓ authorized agent invocation</div>
+
+        <!-- Layer 3 -->
+        <div class="arch-layer layer-orch" style="color:#c4b5fd;">
+          <div class="layer-label">Layer 3 · Agent Orchestration (Vertex AI)</div>
+          <div class="layer-title" style="color:#e9d5ff;">🧠 Orchestrator Agent</div>
+          <div class="layer-desc" style="color:#a78bfa;">intent classification · routing · response aggregation</div>
+          <div class="layer-desc" style="color:#a78bfa; margin-top:4px;">⚙️ Built and configured via <strong>Vertex AI Agent Designer</strong> — prompt-driven configuration, no custom orchestration code</div>
+          <div class="orch-inner">
+            <div class="sub-agent sa-doc">
+              <span class="sa-icon">📄</span>
+              Doc Agent<br/>
+              <span style="font-weight:400;font-size:11px;opacity:.8">Cloud Storage docs</span>
+            </div>
+            <div class="sub-agent sa-issue">
+              <span class="sa-icon">🐛</span>
+              Issue Agent<br/>
+              <span style="font-weight:400;font-size:11px;opacity:.8">BigQuery NL→SQL</span>
+            </div>
+            <div class="sub-agent sa-code">
+              <span class="sa-icon">💻</span>
+              Code Agent<br/>
+              <span style="font-weight:400;font-size:11px;opacity:.8">Semantic code search</span>
+            </div>
+          </div>
+        </div>
+        <div class="connector">↓ read-only data access</div>
+
+        <!-- Layer 4 -->
+        <div class="arch-layer layer-data">
+          <div class="layer-label">Layer 4 · Data Stores</div>
+          <div class="data-grid">
+            <div class="data-store">📁 Cloud Storage<br/><span style="color:#58a6ff">Program docs & specs</span></div>
+            <div class="data-store">📊 BigQuery<br/><span style="color:#58a6ff">Issue tracker export</span></div>
+            <div class="data-store">🗂 Cloud Storage<br/><span style="color:#58a6ff">Code as .txt files</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTERACTIVE DEMO -->
+  <section>
+    <p class="section-label">Interactive Demo</p>
+    <h2 class="section-title">See the agents in action</h2>
+    <p class="section-desc">Pick a scenario — each shows the exact prompt, how the Orchestrator routes it, which agent(s) handle it, and a realistic response including tables, code snapshots, and structured specs.</p>
+    <br/>
+    <div class="demo-card">
+      <div class="demo-header">
+        <div class="demo-header-left">
+          <div class="demo-header-icon">🤖</div>
+          <div>
+            <h3>Knowledge Guide — Google Chat</h3>
+            <p>Multi-source agent · Vertex AI</p>
+          </div>
+        </div>
+        <div class="status-dot-live">Live demo</div>
+      </div>
+
+      <div class="scenario-tabs" role="tablist">
+        <button class="tab-btn active" onclick="selectScenario(0, this)" role="tab">📄 Functional Spec</button>
+        <button class="tab-btn" onclick="selectScenario(1, this)" role="tab">🐛 New Issues &amp; Features</button>
+        <button class="tab-btn" onclick="selectScenario(2, this)" role="tab">💻 Technical Stack</button>
+        <button class="tab-btn" onclick="selectScenario(3, this)" role="tab">🔀 Issues + Code Snapshot</button>
+        <button class="tab-btn" onclick="selectScenario(4, this)" role="tab">🚀 Onboarding Journey</button>
+      </div>
+
+      <div class="chat-area" id="chatArea"></div>
+
+      <div class="play-bar">
+        <div class="play-hint" id="playHint">Click "Run scenario" to simulate the agent interaction</div>
+        <button class="play-btn" id="playBtn" onclick="runScenario()">▶ Run scenario</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- KEY LESSONS -->
+  <section>
+    <p class="section-label">What I Learned</p>
+    <h2 class="section-title">Non-obvious lessons from building this</h2>
+    <p class="section-desc">Documented here so you don't have to discover them the hard way.</p>
+    <br/>
+    <div class="lessons-grid">
+      <div class="lesson-card">
+        <div class="lesson-icon">🎯</div>
+        <div class="lesson-title">Start with one agent, not many</div>
+        <div class="lesson-body">Built three sub-agents on day one. Should have started with one and split only when context switching demonstrably failed. Routing errors compound.</div>
+        <span class="lesson-tag">Agent Design</span>
+      </div>
+      <div class="lesson-card">
+        <div class="lesson-icon">📝</div>
+        <div class="lesson-title">The system prompt is the product</div>
+        <div class="lesson-body">Response quality is almost entirely determined by the system prompt. Version it, review it, test it — treat it like production code.</div>
+        <span class="lesson-tag">Agent Design</span>
+      </div>
+      <div class="lesson-card">
+        <div class="lesson-icon">🌡️</div>
+        <div class="lesson-title">Temperature=0 for structured data</div>
+        <div class="lesson-body">NL-to-SQL at temperature > 0 produces non-deterministic SQL. The same query can return different results across sessions. This was the single highest-impact fix.</div>
+        <span class="lesson-tag">Issue Agent</span>
+      </div>
+      <div class="lesson-card">
+        <div class="lesson-icon">⏱</div>
+        <div class="lesson-title">Async is not optional</div>
+        <div class="lesson-body">Chat platforms expect fast acknowledgement. Multi-source agent calls take longer. A durable task queue is the only reliable separation between UX and processing.</div>
+        <span class="lesson-tag">Integration</span>
+      </div>
+      <div class="lesson-card">
+        <div class="lesson-icon">👁</div>
+        <div class="lesson-title">Freshness is invisible without signals</div>
+        <div class="lesson-body">If a doc is updated and not re-indexed, the agent answers from the old version with full confidence. Freshness timestamps must be surfaced explicitly.</div>
+        <span class="lesson-tag">Data Sources</span>
+      </div>
+      <div class="lesson-card">
+        <div class="lesson-icon">🗺</div>
+        <div class="lesson-title">Examples matter as much as rules</div>
+        <div class="lesson-body">"How does authentication work?" was mis-routed to the Code agent. Adding disambiguation examples to the orchestrator prompt fixed routing more than rewriting the rules.</div>
+        <span class="lesson-tag">Routing</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACTIVE ISSUES -->
+  <section>
+    <p class="section-label">Active Issues</p>
+    <h2 class="section-title">Open questions — still learning</h2>
+    <p class="section-desc">These are the active learning surface of the POC, not bugs to block launch.</p>
+    <br/>
+    <div class="issues-list">
+      <div class="issue-card">
+        <div class="issue-num">#1</div>
+        <div>
+          <div class="issue-title">Inconsistent responses on issue data</div>
+          <div class="issue-desc">Same question can return different counts across sessions when the data hasn't changed. Root cause: NL-to-SQL non-determinism at temperature > 0. Fixed with <code class="inline">temperature=0</code> and curated BigQuery views. SQL validation layer and schema auto-sync still planned.</div>
+        </div>
+        <div class="issue-badge badge-active">Active</div>
+      </div>
+      <div class="issue-card">
+        <div class="issue-num">#2</div>
+        <div>
+          <div class="issue-title">Delayed or missing chat responses</div>
+          <div class="issue-desc">Longer analytical queries can exceed the chat platform's acknowledgement window. Background threads also fail when ephemeral function instances end early. Fixed immediate acknowledgement and failure callbacks; managed task queue still in progress.</div>
+        </div>
+        <div class="issue-badge badge-active">Active</div>
+      </div>
+      <div class="issue-card">
+        <div class="issue-num">#3</div>
+        <div>
+          <div class="issue-title">Data and code freshness lag</div>
+          <div class="issue-desc">Periodic exports and indexing introduce a delay between source updates and searchable content. The agent may answer from a stale snapshot with no visible warning. Incremental BigQuery updates and freshness indicators in responses are planned.</div>
+        </div>
+        <div class="issue-badge badge-known">Known limitation</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROADMAP -->
+  <section>
+    <p class="section-label">Strategic Roadmap</p>
+    <h2 class="section-title">Where this goes next</h2>
+    <p class="section-desc">Capability areas for the next phase — from text assistant to adaptive, multimodal experience.</p>
+    <br/>
+    <div class="roadmap-grid">
+      <div class="roadmap-card">
+        <div class="roadmap-icon">🎨</div>
+        <div class="roadmap-title">Multimodal outputs</div>
+        <div class="roadmap-desc">Visual flows, diagrams, spoken summaries, short video walkthroughs, and structured briefing documents — the right format for the right question.</div>
+      </div>
+      <div class="roadmap-card">
+        <div class="roadmap-icon">🎙</div>
+        <div class="roadmap-title">Voice interaction</div>
+        <div class="roadmap-desc">Speak naturally, receive spoken or visual responses. Hands-free information retrieval, accessible onboarding, and field-based workflows.</div>
+      </div>
+      <div class="roadmap-card">
+        <div class="roadmap-icon">📊</div>
+        <div class="roadmap-title">Continuous evaluation</div>
+        <div class="roadmap-desc">Representative test sets for all user types. Measure groundedness, routing quality, safety, latency, and cost. Regression evals whenever prompts or models change.</div>
+      </div>
+      <div class="roadmap-card">
+        <div class="roadmap-icon">🔄</div>
+        <div class="roadmap-title">Governed self-improvement</div>
+        <div class="roadmap-desc">Analyze failures, propose prompt revisions, test in sandbox, submit for human approval before deploying. Observe → diagnose → propose → evaluate → approve → deploy → monitor.</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>Multi-Agent Knowledge Guide POC · Vertex AI Agent Platform · Built to test the hypothesis that a team should be able to ask questions in plain English and get answers from all of their knowledge sources at once.</p>
+  <p style="margin-top:10px;">📄 <a href="https://prachidevgaonkar.github.io/Multiagent-Knowledge-Guide-GCP/" target="_blank" rel="noopener">Read the full white paper</a></p>
+</footer>
+
+<script>
+// ── Scenario data ─────────────────────────────────────────────
+const scenarios = [
+  // ── 1. DOC LOOKUP ──────────────────────────────────────────
+  {
+    label: "Doc lookup",
+    hint: "Prompt: functional specification for the Knowledge Guide agent — routed to Doc Agent → Cloud Storage",
+    steps: [
+      {
+        type: "user",
+        text: "Share the functional specification for the Knowledge Guide agent."
+      },
+      {
+        type: "system",
+        text: "Cloud Function validated request · immediate acknowledgement sent · dispatching to Orchestrator via Cloud Tasks"
+      },
+      {
+        type: "orchestrator",
+        text: "<span class='agent-tag tag-orch'>Orchestrator</span><br/>Intent: <strong>document / specification lookup</strong> · keywords: <code class='inline'>functional specification</code>, <code class='inline'>Knowledge Guide agent</code><br/><br/>→ Routing to <strong>Doc Agent</strong>",
+        routing: ["User query", "Orchestrator", "Doc Agent", "Cloud Storage (docs)"]
+      },
+      {
+        type: "doc",
+        text: `<span class='agent-tag tag-doc'>Doc Agent</span> &nbsp; Source: <code class='inline'>product/agent-functional-spec-v2.pdf</code> &nbsp; <span style='color:#8b929e;font-size:11px'>indexed 1 day ago</span>
+
+<div class='spec-section'>
+  <div class='spec-header' style='color:#60a5fa'>📋 Overview</div>
+  <div class='spec-body'>The <strong>Multi-Agent Knowledge Guide</strong> is a conversational AI system built on Vertex AI Agent Platform. It allows any team member to ask questions in plain English and receive synthesised answers drawn from program documents, issue tracker data, and source code — through a single Google Chat interface.</div>
+</div>
+
+<div class='spec-section'>
+  <div class='spec-header' style='color:#60a5fa'>🎯 Functional Goals</div>
+  <div class='spec-body'><ul>
+    <li>Accept natural-language queries from four audience types: engineers, PMs, business leads, and new joiners</li>
+    <li>Classify query intent and route to the appropriate specialist agent(s)</li>
+    <li>Query Cloud Storage docs, BigQuery issue data, and code snapshots in parallel when needed</li>
+    <li>Return synthesised, audience-appropriate responses within the Google Chat interaction window</li>
+    <li>Surface data freshness warnings when source content may be stale</li>
+  </ul></div>
+</div>
+
+<div class='spec-section'>
+  <div class='spec-header' style='color:#60a5fa'>⚙️ Agent Responsibilities</div>
+  <div class='spec-body'>
+    <strong>Orchestrator:</strong> intent classification, routing, parallel agent invocation, response aggregation<br/>
+    <strong>Doc Agent:</strong> semantic search over program documents in Cloud Storage<br/>
+    <strong>Issue Agent:</strong> NL→SQL queries against BigQuery issue export (temperature=0)<br/>
+    <strong>Code Agent:</strong> semantic search over source code snapshots stored as .txt files
+  </div>
+</div>
+
+<div class='spec-section'>
+  <div class='spec-header' style='color:#60a5fa'>🚫 Out of Scope (POC)</div>
+  <div class='spec-body'><ul>
+    <li>Real-time issue tracker integration (batch export only)</li>
+    <li>Write operations of any kind across all agents</li>
+    <li>Cross-file code reasoning and multi-repo support</li>
+    <li>User-level document authorisation (planned post-POC)</li>
+  </ul></div>
+</div>`
+      }
+    ]
+  },
+
+  // ── 2. ISSUE QUERY ─────────────────────────────────────────
+  {
+    label: "Issue query",
+    hint: "Prompt: list 5 new issues or features for the agent — routed to Issue Agent → BigQuery (NL→SQL, temperature=0)",
+    steps: [
+      {
+        type: "user",
+        text: "List 5 new issues or feature requests raised for the Knowledge Guide agent."
+      },
+      {
+        type: "system",
+        text: "Request validated · dispatching to Orchestrator via task queue"
+      },
+      {
+        type: "orchestrator",
+        text: "<span class='agent-tag tag-orch'>Orchestrator</span><br/>Intent: <strong>issue / feature listing</strong> · keywords: <code class='inline'>new issues</code>, <code class='inline'>feature requests</code>, <code class='inline'>list</code><br/><br/>→ Routing to <strong>Issue Agent</strong>",
+        routing: ["User query", "Orchestrator", "Issue Agent", "BigQuery"]
+      },
+      {
+        type: "issue",
+        text: `<span class='agent-tag tag-issue'>Issue Agent</span> &nbsp; Generated SQL (<code class='inline'>temperature=0</code>):
+<div class='sql-block'><span class='sql-keyword'>SELECT</span> issue_id, title, status, component, assignee_group, created_at
+<span class='sql-keyword'>FROM</span> \`project.dataset.issues\`
+<span class='sql-keyword'>WHERE</span> status <span class='sql-keyword'>IN</span> (<span class='sql-string'>'NEW'</span>, <span class='sql-string'>'OPEN'</span>)
+  <span class='sql-keyword'>AND</span> component = <span class='sql-string'>'KnowledgeGuideAgent'</span>
+<span class='sql-keyword'>ORDER BY</span> created_at <span class='sql-keyword'>DESC</span>
+<span class='sql-keyword'>LIMIT</span> <span class='sql-num'>5</span>;</div>
+
+<strong>5 results returned</strong> · Data snapshot 1 hr 42 min old
+
+<table class='resp-table'>
+  <thead>
+    <tr>
+      <th>Issue No.</th>
+      <th>Description</th>
+      <th>Type</th>
+      <th>Component</th>
+      <th>Assigned To</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class='inline'>KGA-0041</code></td>
+      <td>Add incremental BigQuery update support to reduce freshness lag</td>
+      <td><span class='badge-feat'>Feature</span></td>
+      <td>Issue Agent</td>
+      <td>data-platform-team</td>
+    </tr>
+    <tr>
+      <td><code class='inline'>KGA-0042</code></td>
+      <td>SQL validation layer in Cloud Function to block unsafe generated queries</td>
+      <td><span class='badge-new'>New</span></td>
+      <td>Issue Agent</td>
+      <td>Unassigned</td>
+    </tr>
+    <tr>
+      <td><code class='inline'>KGA-0043</code></td>
+      <td>Automated schema synchronisation between BigQuery and agent system prompt</td>
+      <td><span class='badge-feat'>Feature</span></td>
+      <td>Orchestrator</td>
+      <td>ml-infra-team</td>
+    </tr>
+    <tr>
+      <td><code class='inline'>KGA-0044</code></td>
+      <td>Progress update message for requests exceeding 8-second processing time</td>
+      <td><span class='badge-new'>New</span></td>
+      <td>Cloud Function</td>
+      <td>platform-eng-team</td>
+    </tr>
+    <tr>
+      <td><code class='inline'>KGA-0045</code></td>
+      <td>Voice input support for hands-free information retrieval (Phase 2)</td>
+      <td><span class='badge-feat'>Feature</span></td>
+      <td>Presentation</td>
+      <td>Unassigned</td>
+    </tr>
+  </tbody>
+</table>`
+      }
+    ]
+  },
+
+  // ── 3. CODE SEARCH ─────────────────────────────────────────
+  {
+    label: "Code search",
+    hint: "Prompt: explain the technical stack for backend deploy.py — routed to Code Agent → Cloud Storage (.txt)",
+    steps: [
+      {
+        type: "user",
+        text: "Explain the technical stack for the backend deploy.py code."
+      },
+      {
+        type: "system",
+        text: "Request validated · dispatching to Orchestrator"
+      },
+      {
+        type: "orchestrator",
+        text: "<span class='agent-tag tag-orch'>Orchestrator</span><br/>Intent: <strong>code / technical stack query</strong> · keywords: <code class='inline'>technical stack</code>, <code class='inline'>deploy.py</code>, <code class='inline'>backend</code><br/><br/>→ Routing to <strong>Code Agent</strong>",
+        routing: ["User query", "Orchestrator", "Code Agent", "Cloud Storage (.txt snapshots)"]
+      },
+      {
+        type: "code",
+        text: `<span class='agent-tag tag-code'>Code Agent</span> &nbsp; Source: <code class='inline'>src/deploy/deploy.py.txt</code> &nbsp; <span style='color:#8b929e;font-size:11px'>snapshot 6 hrs ago</span>
+
+<div class='code-snap'>
+  <div class='code-snap-header'>
+    <span class='file-name'>📄 src/deploy/deploy.py</span>
+    <span>Python · 187 lines · last commit 2d ago</span>
+  </div>
+  <pre><span class='cm'># deploy.py — Backend deployment orchestrator</span>
+<span class='kw'>import</span> subprocess, os, logging
+<span class='kw'>from</span> google.cloud <span class='kw'>import</span> run_v2, artifactregistry_v1
+<span class='kw'>from</span> google.cloud <span class='kw'>import</span> secretmanager
+<span class='kw'>from</span> vertexai.preview.reasoning_engines <span class='kw'>import</span> ReasoningEngine
+
+<span class='cm'># Build → push → deploy pipeline</span>
+<span class='kw'>def</span> <span class='fn'>deploy_agent_service</span>(env: str, image_tag: str) -> <span class='fn'>dict</span>:
+    _build_container(image_tag)
+    _push_to_registry(image_tag)
+    <span class='kw'>return</span> _deploy_cloud_run(env, image_tag)
+
+<span class='kw'>def</span> <span class='fn'>_build_container</span>(tag: str):
+    subprocess.run([<span class='str'>"docker"</span>, <span class='str'>"build"</span>, <span class='str'>"-t"</span>, tag, <span class='str'>"."</span>], check=<span class='num'>True</span>)
+
+<span class='kw'>def</span> <span class='fn'>_deploy_cloud_run</span>(env: str, tag: str) -> <span class='fn'>dict</span>:
+    client = run_v2.ServicesClient()
+    <span class='cm'># reads config from Secret Manager — no hardcoded credentials</span>
+    secrets = _load_secrets(env)
+    ...</pre>
+</div>
+
+<strong>Technical Stack — <code class='inline'>deploy.py</code></strong>
+
+<div class='spec-section'>
+  <div class='spec-header' style='color:#34d399'>🐍 Runtime & Language</div>
+  <div class='spec-body'>
+    <span class='tech-chip' style='background:rgba(5,150,105,.1);border:1px solid rgba(5,150,105,.3);color:#34d399'>Python 3.11</span>
+    <span class='tech-chip' style='background:rgba(5,150,105,.1);border:1px solid rgba(5,150,105,.3);color:#34d399'>Docker (container build)</span>
+    <span class='tech-chip' style='background:rgba(5,150,105,.1);border:1px solid rgba(5,150,105,.3);color:#34d399'>Cloud Build (CI trigger)</span>
+  </div>
+</div>
+
+<div class='spec-section'>
+  <div class='spec-header' style='color:#34d399'>☁️ Google Cloud Services</div>
+  <div class='spec-body'>
+    <strong>Cloud Run</strong> — Hosts the webhook Cloud Function; <code class='inline'>run_v2.ServicesClient</code> manages service deployment programmatically<br/><br/>
+    <strong>Artifact Registry</strong> — Container image store; <code class='inline'>artifactregistry_v1</code> client handles push and tag management<br/><br/>
+    <strong>Secret Manager</strong> — All credentials and environment config are read at deploy time via <code class='inline'>secretmanager.SecretManagerServiceClient</code> — no hardcoded secrets<br/><br/>
+    <strong>Vertex AI Reasoning Engine</strong> — Agent deployment target; <code class='inline'>vertexai.preview.reasoning_engines.ReasoningEngine</code> registers the orchestrator
+  </div>
+</div>
+
+<div class='spec-section'>
+  <div class='spec-header' style='color:#34d399'>🔑 Auth & Identity</div>
+  <div class='spec-body'>Workload Identity Federation — no long-lived service account keys. Deploy pipeline authenticates via short-lived OIDC tokens bound to the Cloud Build service identity.</div>
+</div>
+
+<div class='spec-section'>
+  <div class='spec-header' style='color:#34d399'>⚠️ Freshness Note</div>
+  <div class='spec-body'>Snapshot taken 6 hours ago. Any commits merged since then are not reflected. Run <code class='inline'>git log --oneline src/deploy/deploy.py</code> to check for recent changes.</div>
+</div>`
+      }
+    ]
+  },
+
+  // ── 4. CROSS-DOMAIN ────────────────────────────────────────
+  {
+    label: "Cross-domain",
+    hint: "Prompt: list open issues for the agent + relevant code snapshot — Issue Agent (table) + Code Agent (snapshot) run in parallel",
+    steps: [
+      {
+        type: "user",
+        text: "List the open issues for the Knowledge Guide agent and help me with the relevant code snapshot."
+      },
+      {
+        type: "system",
+        text: "Request validated · dispatching to Orchestrator via task queue"
+      },
+      {
+        type: "orchestrator",
+        text: "<span class='agent-tag tag-orch'>Orchestrator</span><br/>Intent: <strong>cross-domain</strong> — open issue listing <em>and</em> code context requested together.<br/><br/>→ Calling <strong>Issue Agent + Code Agent in parallel</strong>",
+        routing: ["User query", "Orchestrator", "Issue Agent + Code Agent (parallel)", "BigQuery + Cloud Storage (.txt)"]
+      },
+      {
+        type: "issue",
+        text: `<span class='agent-tag tag-issue'>Issue Agent</span> &nbsp; Generated SQL (<code class='inline'>temperature=0</code>):
+<div class='sql-block'><span class='sql-keyword'>SELECT</span> issue_id, title, priority, status, component, assignee_group, updated_at
+<span class='sql-keyword'>FROM</span> \`project.dataset.issues\`
+<span class='sql-keyword'>WHERE</span> status = <span class='sql-string'>'OPEN'</span>
+  <span class='sql-keyword'>AND</span> component <span class='sql-keyword'>LIKE</span> <span class='sql-string'>'%Agent%'</span>
+<span class='sql-keyword'>ORDER BY</span> priority <span class='sql-keyword'>ASC</span>, updated_at <span class='sql-keyword'>DESC</span>
+<span class='sql-keyword'>LIMIT</span> <span class='sql-num'>6</span>;</div>
+
+<strong>6 open issues found</strong>
+
+<table class='resp-table'>
+  <thead>
+    <tr><th>Issue No.</th><th>Description</th><th>Priority</th><th>Component</th><th>Assigned To</th><th>Last Updated</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class='inline'>KGA-0031</code></td>
+      <td>Orchestrator mis-routes "how does X work" to Code Agent instead of Doc Agent</td>
+      <td><span class='badge-p0'>P0</span></td>
+      <td>Orchestrator</td>
+      <td>ml-infra-team</td>
+      <td>Today 09:14</td>
+    </tr>
+    <tr>
+      <td><code class='inline'>KGA-0033</code></td>
+      <td>Issue Agent returns empty result set on component name case mismatch</td>
+      <td><span class='badge-p0'>P0</span></td>
+      <td>Issue Agent</td>
+      <td>data-platform-team</td>
+      <td>Today 08:02</td>
+    </tr>
+    <tr>
+      <td><code class='inline'>KGA-0036</code></td>
+      <td>Chat response missing when Cloud Run instance cold-starts during agent call</td>
+      <td><span class='badge-p1'>P1</span></td>
+      <td>Cloud Function</td>
+      <td>platform-eng-team</td>
+      <td>Yesterday</td>
+    </tr>
+    <tr>
+      <td><code class='inline'>KGA-0038</code></td>
+      <td>Doc Agent returns outdated architecture spec — stale index not flagged</td>
+      <td><span class='badge-p1'>P1</span></td>
+      <td>Doc Agent</td>
+      <td>ml-infra-team</td>
+      <td>Yesterday</td>
+    </tr>
+    <tr>
+      <td><code class='inline'>KGA-0042</code></td>
+      <td>SQL validation layer in Cloud Function — blocks unsafe generated queries</td>
+      <td><span class='badge-open'>P2</span></td>
+      <td>Issue Agent</td>
+      <td>Unassigned</td>
+      <td>2 days ago</td>
+    </tr>
+    <tr>
+      <td><code class='inline'>KGA-0044</code></td>
+      <td>Progress update message for requests exceeding 8s processing time</td>
+      <td><span class='badge-open'>P2</span></td>
+      <td>Cloud Function</td>
+      <td>platform-eng-team</td>
+      <td>2 days ago</td>
+    </tr>
+  </tbody>
+</table>`
+      },
+      {
+        type: "code",
+        text: `<span class='agent-tag tag-code'>Code Agent</span> &nbsp; Matched issues to relevant source files
+
+<strong>Relevant code snapshots for open issues:</strong>
+
+<div class='code-snap'>
+  <div class='code-snap-header'>
+    <span class='file-name'>📄 src/orchestrator/intent_router.py</span>
+    <span>Relates to KGA-0031 · snapshot 4 hrs ago</span>
+  </div>
+  <pre><span class='cm'># intent_router.py — Orchestrator routing logic</span>
+ROUTING_TABLE = {
+    <span class='str'>"doc"</span>:   [<span class='str'>"onboarding"</span>, <span class='str'>"architecture"</span>, <span class='str'>"spec"</span>, <span class='str'>"runbook"</span>, <span class='str'>"policy"</span>],
+    <span class='str'>"issue"</span>: [<span class='str'>"bug"</span>, <span class='str'>"issue"</span>, <span class='str'>"priority"</span>, <span class='str'>"sprint"</span>, <span class='str'>"blocker"</span>],
+    <span class='str'>"code"</span>:  [<span class='str'>"function"</span>, <span class='str'>"class"</span>, <span class='str'>"module"</span>, <span class='str'>"source"</span>, <span class='str'>"api"</span>],
+}
+<span class='cm'># ⚠️ KGA-0031: "how does" prefix not disambiguated — needs</span>
+<span class='cm'>#    explicit example in system prompt before keyword match.</span>
+<span class='kw'>def</span> <span class='fn'>classify</span>(query: str) -> str:
+    <span class='kw'>for</span> agent, signals <span class='kw'>in</span> ROUTING_TABLE.items():
+        <span class='kw'>if</span> <span class='fn'>any</span>(s <span class='kw'>in</span> query.lower() <span class='kw'>for</span> s <span class='kw'>in</span> signals):
+            <span class='kw'>return</span> agent
+    <span class='kw'>return</span> <span class='str'>"doc"</span>  <span class='cm'># default fallback</span></pre>
+</div>
+
+<div class='code-snap'>
+  <div class='code-snap-header'>
+    <span class='file-name'>📄 src/middleware/webhook_handler.py</span>
+    <span>Relates to KGA-0036 · snapshot 4 hrs ago</span>
+  </div>
+  <pre><span class='cm'># webhook_handler.py — Chat webhook + async dispatch</span>
+<span class='kw'>from</span> google.cloud <span class='kw'>import</span> tasks_v2
+
+<span class='kw'>def</span> <span class='fn'>handle_chat_event</span>(request):
+    payload = request.get_json()
+    <span class='fn'>ack_immediately</span>(payload[<span class='str'>"space"</span>])  <span class='cm'># respond before timeout</span>
+    <span class='cm'># ⚠️ KGA-0036: cold-start adds ~3s here before task enqueued</span>
+    task_client = tasks_v2.CloudTasksClient()
+    task_client.create_task(parent=QUEUE_PATH,
+        task={<span class='str'>"http_request"</span>: {<span class='str'>"url"</span>: WORKER_URL,
+              <span class='str'>"body"</span>: <span class='fn'>encode</span>(payload)}})</pre>
+</div>
+
+⚠️ Snapshots taken 4 hours ago — check latest commits for recent fixes.`
+      },
+      {
+        type: "orchestrator",
+        text: `<span class='agent-tag tag-orch'>Orchestrator · Aggregated Summary</span><br/><br/><strong>6 open issues</strong> found across Orchestrator, Issue Agent, Doc Agent, and Cloud Function layer. The two P0s require immediate attention:<br/><br/>• <strong>KGA-0031</strong> — Routing mis-classification in <code class='inline'>intent_router.py</code> (fix: add disambiguation examples to system prompt)<br/>• <strong>KGA-0033</strong> — Case-sensitive component name matching in Issue Agent (fix: normalise to uppercase before SQL generation)<br/><br/>Code Agent matched both P0 issues to their source files above for immediate investigation.`
+      }
+    ]
+  },
+
+  // ── 5. ONBOARDING ──────────────────────────────────────────
+  {
+    label: "Onboarding",
+    hint: "Prompt: onboarding journey for a Full-Stack Developer — Doc Agent returns structured journey path across all knowledge pillars",
+    steps: [
+      {
+        type: "user",
+        text: "Share the onboarding journey for a Full-Stack Developer joining the team."
+      },
+      {
+        type: "system",
+        text: "Request validated · dispatching to Orchestrator"
+      },
+      {
+        type: "orchestrator",
+        text: "<span class='agent-tag tag-orch'>Orchestrator</span><br/>Intent: <strong>onboarding journey query</strong> · role: <code class='inline'>Full-Stack Developer</code><br/><br/>→ Routing to <strong>Doc Agent</strong> (onboarding, architecture, delivery docs)",
+        routing: ["User query", "Orchestrator", "Doc Agent", "Cloud Storage (onboarding + architecture + product)"]
+      },
+      {
+        type: "doc",
+        text: `<span class='agent-tag tag-doc'>Doc Agent</span> &nbsp; Sources: <code class='inline'>onboarding/new-joiner-guide.pdf</code>, <code class='inline'>architecture/system-design-v3.pdf</code>, <code class='inline'>product/prd-v2.pdf</code>
+
+<strong>Full-Stack Developer — Onboarding Journey</strong>
+
+<div style='margin-top:16px'>
+
+  <div class='journey-step'>
+    <div class='journey-node'>
+      <div class='journey-circle' style='background:rgba(124,58,237,.2);border:2px solid #7c3aed;color:#a78bfa'>1</div>
+      <div class='journey-line'></div>
+    </div>
+    <div class='journey-content'>
+      <div class='journey-title'>📋 Program Overview (Day 1–2)</div>
+      <div class='journey-desc'>Read the Program Charter and current OKRs. Understand the mission: making all program knowledge accessible through a single conversational interface. Review the multi-agent architecture overview in <code class='inline'>architecture/system-design-v3.pdf</code> to understand the four-layer system.</div>
+    </div>
+  </div>
+
+  <div class='journey-step'>
+    <div class='journey-node'>
+      <div class='journey-circle' style='background:rgba(37,99,235,.2);border:2px solid #2563eb;color:#60a5fa'>2</div>
+      <div class='journey-line'></div>
+    </div>
+    <div class='journey-content'>
+      <div class='journey-title'>👥 Key Stakeholders (Day 2–3)</div>
+      <div class='journey-desc'>
+        <table class='resp-table' style='margin-top:6px'>
+          <thead><tr><th>Role</th><th>Name / Group</th><th>Relevance to FSD</th></tr></thead>
+          <tbody>
+            <tr><td>Engineering Lead</td><td>ml-infra-team</td><td>Orchestrator & agent design decisions</td></tr>
+            <tr><td>Platform Engineering</td><td>platform-eng-team</td><td>Cloud Functions, Cloud Run, Cloud Tasks</td></tr>
+            <tr><td>Data Platform</td><td>data-platform-team</td><td>BigQuery schema, Issue Agent SQL layer</td></tr>
+            <tr><td>Product Manager</td><td>commerce-pm-group</td><td>Feature priorities, sprint planning</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class='journey-step'>
+    <div class='journey-node'>
+      <div class='journey-circle' style='background:rgba(217,119,6,.2);border:2px solid #d97706;color:#fbbf24'>3</div>
+      <div class='journey-line'></div>
+    </div>
+    <div class='journey-content'>
+      <div class='journey-title'>📊 Delivery Overview (Day 3–5)</div>
+      <div class='journey-desc'>
+        <div class='spec-section' style='margin-top:8px'>
+          <div class='spec-header' style='color:#fbbf24'>Current Status</div>
+          <div class='spec-body'>POC validated. Core multi-agent routing working. Three active issues (KGA-0031, KGA-0033, KGA-0036). Async Cloud Function + Cloud Tasks in progress.</div>
+        </div>
+        <div class='spec-section'>
+          <div class='spec-header' style='color:#fbbf24'>Delivery Plan</div>
+          <div class='spec-body'>
+            <strong>Sprint 1 (current):</strong> Fix P0 routing and SQL issues, complete async task queue<br/>
+            <strong>Sprint 2:</strong> Schema auto-sync, freshness indicators, SQL validation layer<br/>
+            <strong>Sprint 3:</strong> Evaluation framework, regression test suite<br/>
+            <strong>Phase 2:</strong> Multimodal outputs, voice interaction, governed self-improvement
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class='journey-step'>
+    <div class='journey-node'>
+      <div class='journey-circle' style='background:rgba(5,150,105,.2);border:2px solid #059669;color:#34d399'>4</div>
+      <div class='journey-line'></div>
+    </div>
+    <div class='journey-content'>
+      <div class='journey-title'>💻 Code Repository Details (Day 4–5)</div>
+      <div class='journey-desc'>
+        Clone the monorepo then run <code class='inline'>./scripts/bootstrap.sh</code> to set up your local environment.
+        <div style='margin-top:8px'>
+          <span class='repo-chip'>📁 /src/orchestrator</span>
+          <span class='repo-chip'>📁 /src/agents</span>
+          <span class='repo-chip'>📁 /src/middleware</span>
+          <span class='repo-chip'>📁 /src/deploy</span>
+          <span class='repo-chip'>📁 /tests</span>
+          <span class='repo-chip'>📁 /scripts</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class='journey-step'>
+    <div class='journey-node'>
+      <div class='journey-circle' style='background:rgba(8,145,178,.2);border:2px solid #0891b2;color:#67e8f9'>5</div>
+    </div>
+    <div class='journey-content' style='padding-bottom:0'>
+      <div class='journey-title'>🗂 Repository Index (Week 1)</div>
+      <div class='journey-desc'>
+        <table class='resp-table' style='margin-top:6px'>
+          <thead><tr><th>Repo / Bucket</th><th>Type</th><th>Contents</th></tr></thead>
+          <tbody>
+            <tr><td><code class='inline'>github.com/org/knowledge-guide</code></td><td>Code</td><td>Monorepo — agents, Cloud Functions, deploy scripts, tests</td></tr>
+            <tr><td><code class='inline'>gs://[project]-program-docs/</code></td><td>Documents</td><td>Design docs, PRDs, runbooks, onboarding guides, ADRs</td></tr>
+            <tr><td><code class='inline'>gs://[project]-code-snapshots/</code></td><td>Code (indexed)</td><td>Source files exported as .txt for Vertex AI Search</td></tr>
+            <tr><td><code class='inline'>project.dataset.issues</code></td><td>Issue data</td><td>BigQuery — issue tracker export, refreshed periodically</td></tr>
+            <tr><td><code class='inline'>Confluence / team wiki</code></td><td>Team docs</td><td>Meeting notes, team contacts, decision logs (not yet indexed)</td></tr>
+          </tbody>
+        </table>
+        <div style='margin-top:10px;font-size:12px;color:#8b929e'>💡 Ask this agent: <em>"Show me the latest ADRs"</em> or <em>"What P0 issues are open?"</em> to explore as you onboard.</div>
+      </div>
+    </div>
+  </div>
+
+</div>`
+      }
+    ]
+  }
+];
+
+let currentScenario = 0;
+let isPlaying = false;
+
+function selectScenario(idx, btn) {
+  currentScenario = idx;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('chatArea').innerHTML = '';
+  document.getElementById('playBtn').disabled = false;
+  document.getElementById('playBtn').textContent = '▶ Run scenario';
+  document.getElementById('playHint').textContent = scenarios[idx].hint;
+}
+
+async function runScenario() {
+  if (isPlaying) return;
+  isPlaying = true;
+  const btn = document.getElementById('playBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Running…';
+
+  const area = document.getElementById('chatArea');
+  area.innerHTML = '';
+
+  const steps = scenarios[currentScenario].steps;
+
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    await delay(i === 0 ? 0 : 600);
+
+    // Show typing indicator for agent steps
+    let thinkEl = null;
+    if (step.type !== 'user' && step.type !== 'system') {
+      thinkEl = document.createElement('div');
+      thinkEl.innerHTML = `<div class="thinking"><span></span><span></span><span></span> &nbsp;${agentLabel(step.type)} is working…</div>`;
+      area.appendChild(thinkEl);
+      area.scrollTop = area.scrollHeight;
+      await delay(900);
+      thinkEl.remove();
+    }
+
+    const msgEl = document.createElement('div');
+    msgEl.className = `msg ${step.type} slide-in`;
+
+    if (step.type === 'system') {
+      msgEl.innerHTML = `
+        <div class="msg-meta">⚙ System</div>
+        <div class="msg-bubble">${step.text}</div>`;
+    } else if (step.type === 'user') {
+      msgEl.innerHTML = `
+        <div class="msg-meta">👤 You</div>
+        <div class="msg-bubble">${step.text}</div>`;
+    } else {
+      let extra = '';
+      if (step.routing) {
+        extra = `<div class="routing-trace">` +
+          step.routing.map((n, i) =>
+            `<span class="route-node" style="background:rgba(124,58,237,.15);color:#a78bfa">${n}</span>` +
+            (i < step.routing.length - 1 ? `<span class="route-arrow">→</span>` : '')
+          ).join('') +
+          `</div>`;
+      }
+      msgEl.innerHTML = `
+        <div class="msg-meta">${agentEmoji(step.type)} ${agentLabel(step.type)}</div>
+        ${extra}
+        <div class="msg-bubble">${step.text}</div>`;
+    }
+
+    area.appendChild(msgEl);
+    area.scrollTop = area.scrollHeight;
+  }
+
+  btn.disabled = false;
+  btn.textContent = '↺ Run again';
+  isPlaying = false;
+}
+
+function agentLabel(type) {
+  return { orchestrator: 'Orchestrator', doc: 'Doc Agent', issue: 'Issue Agent', code: 'Code Agent', system: 'System' }[type] || type;
+}
+function agentEmoji(type) {
+  return { orchestrator: '🧠', doc: '📄', issue: '🐛', code: '💻' }[type] || '⚙';
+}
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Init first scenario hint
+document.getElementById('playHint').textContent = scenarios[0].hint;
+</script>
+</body>
+</html>
